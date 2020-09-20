@@ -1,10 +1,13 @@
 package ImageHoster.controller;
 
+import ImageHoster.model.Comment;
 import ImageHoster.model.Image;
 import ImageHoster.model.Tag;
 import ImageHoster.model.User;
+import ImageHoster.service.CommentService;
 import ImageHoster.service.ImageService;
 import ImageHoster.service.TagService;
+import ImageHoster.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -25,7 +28,13 @@ public class ImageController {
     private ImageService imageService;
 
     @Autowired
+    private CommentService commentService;
+
+    @Autowired
     private TagService tagService;
+
+    @Autowired
+    private UserService userService;
 
     //This method displays all the images in the user home page after successful login
     @RequestMapping("images")
@@ -46,10 +55,12 @@ public class ImageController {
     //Here a list of tags is added in the Model type object
     //this list is then sent to 'images/image.html' file and the tags are displayed
     @RequestMapping("/images/{id}/{title}")
-    public String showImage(@PathVariable("title") String title,@PathVariable(name = "id") Integer imageId, Model model) {
+    public String showImage(@PathVariable("title") String title, @PathVariable(name = "id") Integer imageId, Model model) {
         Image image = imageService.getImage(imageId);
+        List<Comment> comments = commentService.getAllComment();
         model.addAttribute("image", image);
         model.addAttribute("tags", image.getTags());
+        model.addAttribute("comments", comments);
         return "images/image";
     }
 
@@ -102,10 +113,12 @@ public class ImageController {
             model.addAttribute("tags", tags);
             return "images/edit";
         } else {
+            List<Comment> comments = commentService.getAllComment();
             String error = "Only the owner of the image can edit the image";
             model.addAttribute("image", image);
             model.addAttribute("tags", image.getTags());
             model.addAttribute("editError", error);
+            model.addAttribute("comments", comments);
             return "images/image";
         }
 
@@ -142,7 +155,7 @@ public class ImageController {
         updatedImage.setDate(new Date());
 
         imageService.updateImage(updatedImage);
-        return "redirect:/images/"+ updatedImage.getId() + "/" + updatedImage.getTitle();
+        return "redirect:/images/" + updatedImage.getId() + "/" + updatedImage.getTitle();
     }
 
 
@@ -158,12 +171,27 @@ public class ImageController {
             imageService.deleteImage(imageId);
             return "redirect:/images";
         } else {
+            List<Comment> comments = commentService.getAllComment();
             String error = "Only the owner of the image can edit the image";
             model.addAttribute("image", image);
             model.addAttribute("tags", image.getTags());
             model.addAttribute("deleteError", error);
+            model.addAttribute("comments", comments);
             return "images/image";
         }
+    }
+
+    @RequestMapping(value = "/image/{imageId}/{imageTitle}/comments", method = RequestMethod.POST)
+    public String createComment(@RequestParam("comment") String text, @PathVariable(name = "imageId") Integer imageId, @PathVariable(name = "imageTitle") String imageTitle, HttpSession session) {
+        Comment newComment = new Comment();
+        newComment.setText(text);
+        Image image = imageService.getImage(imageId);
+        newComment.setImage(image);
+        newComment.setCreatedDate(new Date());
+        User user = (User) session.getAttribute("loggeduser");
+        newComment.setUser(user);
+        commentService.addComment(newComment);
+        return "redirect:/images/" + imageId + "/" + imageTitle;
     }
 
 
